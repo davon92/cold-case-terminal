@@ -31,16 +31,15 @@ export default function LandingPage() {
       if (charIndex < currentLine.length) {
         setCurrentTypedLine((prev) => prev + currentLine.charAt(charIndex));
         charIndex++;
-        typingTimeout = setTimeout(typeLine, 40); // Speed per character
+        typingTimeout = setTimeout(typeLine, 40); // character speed
       } else {
-        // Lock the line and move to the next after a pause
         setLinesShown((prev) => [...prev, currentLine]);
         setCurrentTypedLine('');
         charIndex = 0;
         lineIndex++;
 
         if (lineIndex < bootLines.length) {
-          lineTimeout = setTimeout(typeLine, 500); // Pause before next line
+          lineTimeout = setTimeout(typeLine, 500); // pause before next line
         } else {
           setTimeout(() => setBootComplete(true), 600);
         }
@@ -56,23 +55,26 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="h-screen bg-black text-green-500 font-mono p-6 flex flex-col items-center justify-center">
-      <div className="w-full max-w-2xl border border-green-600 p-4 bg-[#111] shadow-lg terminal-box">
-        {linesShown.map((line, index) => (
-          <p key={index} className="text-sm">{line}</p>
-        ))}
+    <main className="h-screen bg-black flex items-center justify-center p-6 font-mono text-sm text-black">
+      <div className="bg-[#c0c0c0] border-4 border-[#9f9f9f] shadow-inner w-full max-w-xl p-4">
+        <div className="bg-[#e0e0e0] border-b-2 border-[#666] px-2 py-1 font-bold text-xs uppercase tracking-wider">
+          BOOT TERMINAL
+        </div>
 
-        {/* Current typing line with blinking cursor */}
-        {currentTypedLine && (
-          <p className="text-sm blinking-cursor">{currentTypedLine}</p>
-        )}
+        <div className="bg-white border border-[#999] p-3 min-h-[200px] space-y-1">
+          {linesShown.map((line, idx) => (
+            <p key={idx} className="text-black">{line}</p>
+          ))}
+          {currentTypedLine && (
+            <p className="text-black blinking-cursor">{currentTypedLine}</p>
+          )}
+        </div>
 
-        {/* Final Connect Button */}
         {bootComplete && (
-          <div className="mt-6 text-center">
+          <div className="mt-4 text-center">
             <button
-              className="px-6 py-2 bg-green-700 hover:bg-green-600 text-black font-bold border-2 border-green-300"
               onClick={() => router.push('/')}
+              className="bg-[#d9d9d9] border border-[#777] px-6 py-2 text-xs font-bold hover:bg-[#e5e5e5] shadow"
             >
               CONNECT
             </button>
