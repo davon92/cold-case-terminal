@@ -6,8 +6,7 @@ export default function Home() {
   const router = useRouter();
 
   useEffect(() => {
-    // Redirect to the terminal landing animation
-    router.replace('/landing');
+    router.replace('/landing'); // redirect to landing
   }, [router]);
 
   return null;

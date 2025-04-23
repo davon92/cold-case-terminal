@@ -72,10 +72,12 @@ export default function LandingPage() {
 
         {bootComplete && (
           <div className="mt-4 text-center">
-            <button onClick={() => router.push('/')} className="win95-button">
+            <button
+              onClick={() => router.push('/')}
+              className="win95-button"
+            >
               CONNECT
             </button>
-
           </div>
         )}
       </div>
