@@ -72,12 +72,12 @@ export default function LandingPage() {
 
         {bootComplete && (
           <div className="mt-4 text-center">
-            <button
-              onClick={() => router.push('/')}
-              className="bg-[#d9d9d9] border border-[#777] px-6 py-2 text-xs font-bold hover:bg-[#e5e5e5] shadow"
-            >
-              CONNECT
-            </button>
+           <button
+            onClick={() => router.push('/')}
+            className="bg-[#d9d9d9] border border-[#777] px-6 py-2 text-xs font-bold shadow-sm active:shadow-inner active:translate-y-[1px] focus:outline-none"
+          >
+            CONNECT
+          </button>
           </div>
         )}
       </div>
