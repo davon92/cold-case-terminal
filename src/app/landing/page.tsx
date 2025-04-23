@@ -72,25 +72,9 @@ export default function LandingPage() {
 
         {bootComplete && (
           <div className="mt-4 text-center">
-          <button
-            onClick={() => router.push('/')}
-            className="
-              bg-[#d4d0c8]
-              border border-[#808080] border-b-[#fff] border-r-[#fff]
-              text-[#000]
-              px-6 py-2 text-xs font-bold
-              shadow-sm
-              active:border-t-[#404040] active:border-l-[#404040]
-              active:border-b-[#dcdcdc] active:border-r-[#dcdcdc]
-              active:bg-[#c0c0c0]
-              active:shadow-inner
-              focus:outline-none
-              select-none
-              tracking-wide
-            "
-          >
-            CONNECT
-          </button>
+            <button onClick={() => router.push('/')} className="win95-button">
+              CONNECT
+            </button>
 
           </div>
         )}
