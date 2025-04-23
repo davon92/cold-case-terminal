@@ -65,9 +65,9 @@ export default function LandingPage() {
           {linesShown.map((line, idx) => (
             <p key={idx} className="text-black">{line}</p>
           ))}
-          {currentTypedLine && (
-            <p className="text-black blinking-cursor">{currentTypedLine}</p>
-          )}
+         <p className="text-black blinking-cursor min-h-[1.5rem]">
+            {currentTypedLine}&nbsp;
+          </p>
         </div>
 
         {bootComplete && (
