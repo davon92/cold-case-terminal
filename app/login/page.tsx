@@ -15,7 +15,7 @@ export default function LoginPage() {
       return;
     }
 
-    router.push('/case'); // placeholder
+    router.push('/case-library'); // placeholder
   };
 
   return (

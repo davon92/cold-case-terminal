@@ -21,7 +21,17 @@ input, textarea, select {
   border-bottom: 1px solid #808080;
   border-right: 1px solid #808080;
   padding: 6px 12px;
+  user-select: none;
   text-transform: uppercase;
   cursor: default;
   outline: none;
+  box-shadow: none;
+}
+
+.win95-button:active {
+  border-top: 1px solid #808080;
+  border-left: 1px solid #808080;
+  border-bottom: 1px solid #fff;
+  border-right: 1px solid #fff;
+  background-color: #c0c0c0;
 }
