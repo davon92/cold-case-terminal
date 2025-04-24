@@ -2,11 +2,11 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 
-export default function RedirectHome() {
+export default function HomeRedirect() {
   const router = useRouter();
 
   useEffect(() => {
-    router.replace('/landing'); // or '/login'
+    router.replace('/landing');
   }, [router]);
 
   return null;
