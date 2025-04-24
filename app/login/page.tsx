@@ -1,73 +1,27 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import { useState } from 'react';
-import { db } from '../../lib/firebase';
-import {
-  collection,
-  doc,
-  getDoc,
-  getDocs,
-  query,
-  where
-} from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [code, setCode] = useState('');
   const [isGuest, setIsGuest] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
 
-  const handleLogin = async () => {
-    setError('');
-    const normalized = code.trim().toUpperCase();
-
-    try {
-      if (isGuest) {
-        const q = query(collection(db, 'runs'), where('guestAccessCode', '==', normalized));
-        const snap = await getDocs(q);
-
-        if (snap.empty) {
-          setError('No run found for that guest access code.');
-          return;
-        }
-
-        const doc = snap.docs[0];
-        const runId = doc.id;
-        const data = doc.data();
-
-        localStorage.setItem('runId', runId);
-        localStorage.setItem('agentName', data.agentName || 'Unknown');
-        localStorage.setItem('isGuest', 'true');
-
-        router.push('/case');
-      } else {
-        const runRef = doc(db, 'runs', normalized);
-        const runSnap = await getDoc(runRef);
-
-        if (!runSnap.exists()) {
-          setError('Run ID not found.');
-          return;
-        }
-
-        const data = runSnap.data();
-
-        localStorage.setItem('runId', runSnap.id);
-        localStorage.setItem('agentName', data.agentName || 'Unknown');
-        localStorage.setItem('isGuest', 'false');
-
-        router.push('/case');
-      }
-    } catch (err: unknown) {
-      setError('Something went wrong.');
-      console.error(err);
+  const handleLogin = () => {
+    if (code.trim() === '') {
+      setError('Please enter a valid code.');
+      return;
     }
+
+    router.push('/case'); // placeholder
   };
 
   return (
     <main className="h-screen bg-black flex items-center justify-center p-6 font-mono text-sm text-black">
-      <div className="bg-[#c0c0c0] border-4 border-[#9f9f9f] shadow-inner w-full max-w-2xl p-8">
-        <div className="bg-[#e0e0e0] border-b-2 border-[#666] px-2 py-1 font-bold text-xs uppercase tracking-wider">
+      <div className="bg-[#c0c0c0] border border-t-white border-l-white border-b-[#808080] border-r-[#808080] shadow-[2px_2px_0_#000] w-full max-w-md p-4">
+        <div className="bg-[#e0e0e0] border-b border-[#666] px-2 py-1 font-bold text-xs uppercase tracking-wider">
           LOGIN TERMINAL
         </div>
 
@@ -89,7 +43,7 @@ export default function LoginPage() {
               checked={isGuest}
               id="guestCheck"
               onChange={(e) => setIsGuest(e.target.checked)}
-              className="accent-[#000] w-4 h-4 border border-[#000] bg-white shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000]"
+              className="w-4 h-4 appearance-none bg-white border border-black checked:bg-white checked:border-black checked:[background-image:url('data:image/svg+xml,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M1%205l2%202l5-5%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20fill%3D%22none%22/%3E%3C/svg%3E')] bg-no-repeat bg-center shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000]"
             />
             <label htmlFor="guestCheck">Log in as guest</label>
           </div>
