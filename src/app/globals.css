@@ -71,9 +71,7 @@ input,
 textarea,
 select,
 button {
-  background-color: var(--glass-gray);
   border: 2px inset var(--ui-frame);
-  color: var(--foreground);
   font-family: var(--font-ui);
   padding: 0.5rem;
   font-size: 14px;
@@ -129,6 +127,14 @@ button:hover {
   text-transform: uppercase;
   cursor: default;
   outline: none;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.win95-button:hover {
+  background-color: #d4d0c8; /* no change */
+  color: black;             /* no change */
+  box-shadow: none;
 }
 
 .win95-button:active {

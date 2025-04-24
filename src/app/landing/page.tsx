@@ -28,10 +28,11 @@ export default function LandingPage() {
     const typeLine = () => {
       const currentLine = bootLines[lineIndex];
 
-      if (charIndex < currentLine.length) {
-        setCurrentTypedLine((prev) => prev + currentLine.charAt(charIndex));
+      if (charIndex <= currentLine.length) {
+        // Instead of appending, slice directly from source string
+        setCurrentTypedLine(currentLine.slice(0, charIndex));
         charIndex++;
-        typingTimeout = setTimeout(typeLine, 40); // character speed
+        typingTimeout = setTimeout(typeLine, 40);
       } else {
         setLinesShown((prev) => [...prev, currentLine]);
         setCurrentTypedLine('');
@@ -39,7 +40,7 @@ export default function LandingPage() {
         lineIndex++;
 
         if (lineIndex < bootLines.length) {
-          lineTimeout = setTimeout(typeLine, 500); // pause before next line
+          lineTimeout = setTimeout(typeLine, 500);
         } else {
           setTimeout(() => setBootComplete(true), 600);
         }
@@ -55,8 +56,8 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <main className="h-screen bg-black flex items-center justify-center p-6 font-mono text-sm text-black">
-      <div className="bg-[#c0c0c0] border-4 border-[#9f9f9f] shadow-inner w-full max-w-xl p-4">
+<main className="min-h-screen bg-black bg-[url('/bg-retro.png')] bg-cover bg-center flex items-center justify-center p-6 font-mono text-sm text-black">      
+<div className="bg-[#c0c0c0] border-4 border-[#9f9f9f] shadow-inner w-full max-w-xl p-4">
         <div className="bg-[#e0e0e0] border-b-2 border-[#666] px-2 py-1 font-bold text-xs uppercase tracking-wider">
           BOOT TERMINAL
         </div>
@@ -65,15 +66,15 @@ export default function LandingPage() {
           {linesShown.map((line, idx) => (
             <p key={idx} className="text-black">{line}</p>
           ))}
-            <p className="text-black blinking-cursor min-h-[1.5rem] w-full block">
-              {currentTypedLine}{'\u00A0'}
-            </p>
+          <p className="text-black blinking-cursor min-h-[1.5rem] w-full block">
+            {currentTypedLine}{'\u00A0'}
+          </p>
         </div>
 
         {bootComplete && (
           <div className="mt-4 text-center">
             <button
-              onClick={() => router.push('/')}
+              onClick={() => router.push('/login')}
               className="win95-button"
             >
               CONNECT
