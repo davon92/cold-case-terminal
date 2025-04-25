@@ -2,6 +2,7 @@
 'use client';
 
 import { useState } from 'react';
+import EvidenceCard from '@/components/EvidenceCard';
 
 const sampleCases = [
   { id: 'CASE-001', title: 'Subway Strangler', unlocked: true },
@@ -37,11 +38,29 @@ export default function CaseLibraryPage() {
         {activeCaseId && (
           <div className="mt-6 bg-white border border-[#666] p-4">
             <h2 className="text-lg font-bold mb-2">Opened Case: {activeCaseId}</h2>
-            <ul className="list-disc list-inside text-sm">
-              <li>witness_log.pdf</li>
-              <li>surveillance_footage.mp4</li>
-              <li>transcript.txt</li>
-            </ul>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
+                  <EvidenceCard
+                    evidenceId="5"
+                    fileName="witness_log.pdf"
+                    fileType="Transcript"
+                    thumbnailUrl="/evidence/thumb5.jpg"
+                    fileDownloadUrl="/evidence/witness_log.pdf"
+                  />
+                  <EvidenceCard
+                    evidenceId="6"
+                    thumbnailUrl="/evidence/thumb2.jpg"
+                    fileName="surveillance_footage.mp4"
+                    fileType="Video"
+                    fileDownloadUrl="/evidence/surveillance_footage.mp4"
+                  />
+                  <EvidenceCard
+                    evidenceId="3"
+                    thumbnailUrl="/evidence/thumb3.jpg"
+                    fileName="transcript.txt"
+                    fileType="Notes"
+                    fileDownloadUrl="/evidence/transcript.txt"
+                  />
+          </div>
           </div>
         )}
       </div>

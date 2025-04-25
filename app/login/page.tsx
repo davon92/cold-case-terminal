@@ -2,20 +2,63 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function LoginPage() {
   const router = useRouter();
+
   const [code, setCode] = useState('');
   const [isGuest, setIsGuest] = useState(false);
   const [error, setError] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
+    setError('');
+
     if (code.trim() === '') {
       setError('Please enter a valid code.');
       return;
     }
 
-    router.push('/case-library'); // placeholder
+    try {
+      if (isGuest) {
+        // Look up guest access code across all runs
+        const allRuns = await getDocs(collection(db, 'runs'));
+        let matchingRunId = null;
+
+        allRuns.forEach((doc) => {
+          const data = doc.data();
+          if (data.guestAccessCode === code.trim()) {
+            matchingRunId = doc.id;
+          }
+        });
+
+        if (matchingRunId) {
+          localStorage.setItem('runId', matchingRunId);
+          localStorage.setItem('isGuest', 'true');
+          localStorage.setItem('guestAccessCode', code.trim());
+          router.push('/case-library');
+        } else {
+          setError('Incorrect guest access code.');
+        }
+      } else {
+        // Agent login using code as runId
+        const ref = doc(db, 'runs', code.trim());
+        const snap = await getDoc(ref);
+
+        if (snap.exists()) {
+          localStorage.setItem('runId', code.trim());
+          localStorage.setItem('isGuest', 'false');
+          router.push('/case-library');
+        } else {
+          setError('Invalid Run ID.');
+        }
+      }
+    } catch (err) {
+      console.error('Login error:', err);
+      setError('Something went wrong. Please try again.');
+    }
   };
 
   return (
@@ -30,12 +73,21 @@ export default function LoginPage() {
             {isGuest ? 'Guest Access Code:' : 'Agent Run ID:'}
           </label>
 
-          <input
-            type="text"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full p-2 text-sm font-mono bg-white text-black caret-black border border-[#808080] shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000] outline-none"
-          />
+          <div className="relative">
+            <input
+              type={showPassword ? 'text' : 'password'}
+              value={code}
+              onChange={(e) => setCode(e.target.value)}
+              className="w-full p-2 pr-10 text-sm font-mono bg-white text-black caret-black border border-[#808080] shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000]"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-black"
+            >
+              {showPassword ? '🙈' : '👁️'}
+            </button>
+          </div>
 
           <div className="flex items-center gap-2 text-xs pt-1">
             <input
