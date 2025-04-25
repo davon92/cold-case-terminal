@@ -23,13 +23,17 @@ export default function EvidenceCard({
     const runId = localStorage.getItem('runId');
     if (!runId) return alert('Run ID not found. Please log in.');
   
+    console.log('Submitting evidence:', { runId, evidenceId, isGuest, accessCode });
+
     let result: 'ok' | 'duplicate' | 'error' = 'error';
-  
+
     if (isGuest && accessCode) {
       result = await submitGuestEvidence(runId, evidenceId, accessCode);
     } else {
       result = await submitAgentEvidence(runId, evidenceId);
     }
+
+    console.log('Firebase submission result:', result);
   
     if (result === 'ok') {
       alert('Evidence submitted successfully!');

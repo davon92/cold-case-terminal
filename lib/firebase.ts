@@ -1,6 +1,6 @@
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-
+import type { DocumentData, WithFieldValue } from 'firebase/firestore';
 // 🔐 Firebase config using env vars
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
@@ -16,15 +16,10 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 
 // ✅ Submit guest evidence (prevents duplicates)
-export async function submitGuestEvidence(
-    runId: string,
-    evidenceId: string,
-    accessCode: string
-  ): Promise<'ok' | 'duplicate' | 'error'> {
+export async function submitGuestEvidence(runId: string, evidenceId: string, accessCode: string) {
     try {
       const runRef = doc(db, 'runs', runId);
       const snap = await getDoc(runRef);
-  
       if (!snap.exists()) return 'error';
   
       const data = snap.data();
@@ -34,18 +29,22 @@ export async function submitGuestEvidence(
       if (alreadyCollected.includes(evidenceId) || alreadyPending.includes(evidenceId)) {
         return 'duplicate';
       }
-  
-      await updateDoc(runRef, {
+
+      const updateData: Partial<WithFieldValue<DocumentData>> = {
         pendingEvidence: arrayUnion(evidenceId),
-        guestAccessCode: accessCode // 👈 Required by Firestore security rules
-      });
+      };
+      
+      if (accessCode) {
+        updateData.guestAccessCode = accessCode;
+      }
   
       return 'ok';
     } catch (err) {
-      console.error('Error submitting evidence:', err);
+      console.error('🔥 Firestore submission failed:', err);
       return 'error';
     }
   }
+  
   export async function submitAgentEvidence(
     runId: string,
     evidenceId: string
