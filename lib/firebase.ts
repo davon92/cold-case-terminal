@@ -1,8 +1,17 @@
+// Top: setup
 import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getFirestore, doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
-import type { DocumentData, WithFieldValue } from 'firebase/firestore';
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  updateDoc,
+  arrayUnion,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 
-// 🔐 Firebase config using env vars
+
+// Firebase config
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -12,11 +21,18 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-// ✅ Initialize Firebase app
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
 
-// ✅ Submit guest evidence (prevents duplicates)
+// Types
+type PendingEvidenceEntry = {
+  evidenceID: string;
+  submittedBy: "Self" | "Assistant";
+  submittedAt: Timestamp;
+  status: "pending";
+};
+
+// Guest evidence submission
 export async function submitGuestEvidence(runId: string, evidenceId: string, accessCode: string) {
   try {
     const runRef = doc(db, 'runs', runId);
@@ -24,54 +40,62 @@ export async function submitGuestEvidence(runId: string, evidenceId: string, acc
     if (!snap.exists()) return 'error';
 
     const data = snap.data();
-    const alreadyCollected = data.currentCaseProgress?.collectedEvidence || [];
-    const alreadyPending = data.pendingEvidence || [];
+    const alreadyCollected: string[] = data.currentCaseProgress?.collectedEvidence || [];
+    const alreadyPending: string[] = (data.pendingEvidence as PendingEvidenceEntry[] || []).map(e => e.evidenceID);
 
     if (alreadyCollected.includes(evidenceId) || alreadyPending.includes(evidenceId)) {
       return 'duplicate';
     }
 
-    
-
-    const updateData: Partial<WithFieldValue<DocumentData>> = {
-      pendingEvidence: arrayUnion(evidenceId),
-      guestAccessCode: accessCode, // ✅ include access code for Firestore rule match
+    const evidenceEntry: PendingEvidenceEntry = {
+      evidenceID: evidenceId,
+      submittedBy: "Assistant",
+      submittedAt: Timestamp.now(), // ✅ Correct way to set inside arrayUnion
+      status: "pending"
     };
 
-    console.log('📤 updateData:', updateData);
-    console.log('updateData keys:', Object.keys(updateData));
-    await updateDoc(runRef, updateData); // ✅ this was missing!
+    await updateDoc(runRef, {
+      pendingEvidence: arrayUnion(evidenceEntry),
+      guestAccessCode: accessCode, // still needed for Firestore security match
+      lastUpdatedAt: serverTimestamp() // ✅ optional: tracks server time for last write
+    });
 
     return 'ok';
   } catch (err) {
-    console.error('🔥 Firestore submission failed:', err);
+    console.error('🔥 Guest submission failed:', err);
     return 'error';
   }
 }
 
-export async function submitAgentEvidence(
-  runId: string,
-  evidenceId: string
-): Promise<'ok' | 'duplicate' | 'error'> {
+// Agent evidence submission
+export async function submitAgentEvidence(runId: string, evidenceId: string): Promise<'ok' | 'duplicate' | 'error'> {
   try {
     const runRef = doc(db, 'runs', runId);
     const snap = await getDoc(runRef);
     if (!snap.exists()) return 'error';
 
     const data = snap.data();
-    const pending = data.pendingEvidence || [];
+    const alreadyPending: string[] = (data.pendingEvidence as PendingEvidenceEntry[] || []).map(e => e.evidenceID);
 
-    if (pending.includes(evidenceId)) {
+    if (alreadyPending.includes(evidenceId)) {
       return 'duplicate';
     }
-    console.log('📤 sending pendingEvidence:', evidenceId);
+
+    const evidenceEntry: PendingEvidenceEntry = {
+      evidenceID: evidenceId,
+      submittedBy: "Self",
+      submittedAt: Timestamp.now(), // ✅ Same correction here
+      status: "pending"
+    };
+
     await updateDoc(runRef, {
-      pendingEvidence: arrayUnion(evidenceId),
+      pendingEvidence: arrayUnion(evidenceEntry),
+      lastUpdatedAt: serverTimestamp() // ✅ optional, useful
     });
 
     return 'ok';
   } catch (err) {
-    console.error('Agent evidence submission failed:', err);
+    console.error('🔥 Agent submission failed:', err);
     return 'error';
   }
 }
