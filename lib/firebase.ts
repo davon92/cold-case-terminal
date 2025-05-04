@@ -1,4 +1,5 @@
-// Top: setup
+// lib/firebase.ts
+
 import { initializeApp, getApps, getApp } from 'firebase/app';
 import { getStorage, ref, getDownloadURL } from 'firebase/storage';
 
@@ -12,8 +13,7 @@ import {
   Timestamp,
 } from 'firebase/firestore';
 
-
-// Firebase config
+// ✅ Firebase config from .env.local
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
@@ -22,20 +22,22 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
-const storage = getStorage();
 
+// ✅ Correct order: initialize first
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-export const db = getFirestore(app);
 
-// Types
+export const db = getFirestore(app);
+export const storage = getStorage(app);
+
+// ✅ Type for evidence entries
 type PendingEvidenceEntry = {
   evidenceID: string;
-  submittedBy: "Self" | "Assistant";
+  submittedBy: 'Self' | 'Assistant';
   submittedAt: Timestamp;
-  status: "pending";
+  status: 'pending';
 };
 
-// Guest evidence submission
+// ✅ Guest submission
 export async function submitGuestEvidence(runId: string, evidenceId: string, accessCode: string) {
   try {
     const runRef = doc(db, 'runs', runId);
@@ -52,15 +54,15 @@ export async function submitGuestEvidence(runId: string, evidenceId: string, acc
 
     const evidenceEntry: PendingEvidenceEntry = {
       evidenceID: evidenceId,
-      submittedBy: "Assistant",
-      submittedAt: Timestamp.now(), // ✅ Correct way to set inside arrayUnion
-      status: "pending"
+      submittedBy: 'Assistant',
+      submittedAt: Timestamp.now(),
+      status: 'pending',
     };
 
     await updateDoc(runRef, {
       pendingEvidence: arrayUnion(evidenceEntry),
-      guestAccessCode: accessCode, // still needed for Firestore security match
-      lastUpdatedAt: serverTimestamp() // ✅ optional: tracks server time for last write
+      guestAccessCode: accessCode,
+      lastUpdatedAt: serverTimestamp(),
     });
 
     return 'ok';
@@ -70,7 +72,7 @@ export async function submitGuestEvidence(runId: string, evidenceId: string, acc
   }
 }
 
-// Agent evidence submission
+// ✅ Agent submission
 export async function submitAgentEvidence(runId: string, evidenceId: string): Promise<'ok' | 'duplicate' | 'error'> {
   try {
     const runRef = doc(db, 'runs', runId);
@@ -86,14 +88,14 @@ export async function submitAgentEvidence(runId: string, evidenceId: string): Pr
 
     const evidenceEntry: PendingEvidenceEntry = {
       evidenceID: evidenceId,
-      submittedBy: "Self",
-      submittedAt: Timestamp.now(), // ✅ Same correction here
-      status: "pending"
+      submittedBy: 'Self',
+      submittedAt: Timestamp.now(),
+      status: 'pending',
     };
 
     await updateDoc(runRef, {
       pendingEvidence: arrayUnion(evidenceEntry),
-      lastUpdatedAt: serverTimestamp() // ✅ optional, useful
+      lastUpdatedAt: serverTimestamp(),
     });
 
     return 'ok';
@@ -103,13 +105,13 @@ export async function submitAgentEvidence(runId: string, evidenceId: string): Pr
   }
 }
 
+// ✅ Evidence unlock via passcode
 export async function unlockEvidenceForRun(runId: string, passcode: string): Promise<'ok' | 'alreadyUnlocked' | 'invalidCode' | 'error'> {
   try {
     const runRef = doc(db, 'runs', runId);
     const snap = await getDoc(runRef);
     if (!snap.exists()) return 'error';
 
-    // 🔐 Map passcodes to evidence IDs (can later be dynamic via Firestore)
     const codeToEvidence: Record<string, string> = {
       'ARX-29B': 'secret-evidence-5',
       'ZETA-314': 'audio-decrypt-4',
@@ -134,6 +136,7 @@ export async function unlockEvidenceForRun(runId: string, passcode: string): Pro
   }
 }
 
+// ✅ Media asset URL fetch
 export async function fetchEvidenceMediaUrls(caseId: string, evidenceId: string, fileType: string) {
   try {
     const basePath = `cases/${caseId}`;
@@ -154,4 +157,3 @@ export async function fetchEvidenceMediaUrls(caseId: string, evidenceId: string,
     };
   }
 }
-

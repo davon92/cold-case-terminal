@@ -1,14 +1,21 @@
-// scripts/uploadAndLink.ts
-
 import { execSync } from 'child_process';
 import * as path from 'path';
+import * as fs from 'fs';
 
 const evidencePath = path.resolve(__dirname, '../evidence');
-const bucket = 'coldcasesync.appspot.com';
+const bucket = 'gs://coldcasesync.firebasestorage.app';
+
+if (!fs.existsSync(evidencePath)) {
+  console.error('❌ Local evidence folder does not exist:', evidencePath);
+  process.exit(1);
+}
 
 try {
   console.log(`🚀 Uploading local evidence folder to Firebase Storage...`);
-  execSync(`npx firebase storage:upload ${evidencePath} --bucket ${bucket} --recursive`, {
+  console.log('Uploading from path:', evidencePath);
+  console.log('Running:', `gsutil -m cp -r ${evidencePath} ${bucket}/`);
+  
+  execSync(`gsutil -m cp -r ${evidencePath} ${bucket}/`, {
     stdio: 'inherit',
   });
 

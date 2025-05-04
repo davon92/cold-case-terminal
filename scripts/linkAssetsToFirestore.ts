@@ -5,6 +5,7 @@ import * as dotenv from 'dotenv';
 import * as path from 'path';
 import { getFirestore } from 'firebase-admin/firestore';
 import { getStorage } from 'firebase-admin/storage';
+import * as caseManifest from './caseManifest.json';
 
 // Load env file
 dotenv.config({ path: path.resolve(__dirname, './.env') });
@@ -59,8 +60,15 @@ async function linkAllAssets() {
       const caseRef = db.collection('cases').doc(caseId);
       const doc = await caseRef.get();
       if (!doc.exists) {
-        console.warn(`⚠️ No Firestore document found for case ${caseId}`);
-        continue;
+        console.warn(`⚠️ No Firestore document found for case ${caseId}. Creating it.`);
+      
+        const meta = (caseManifest as Record<string, { title: string }>)[caseId];
+        const title = meta?.title || 'Untitled Case';
+      
+        await caseRef.set({
+          title,
+          evidence: {}
+        });
       }
   
       await caseRef.update({

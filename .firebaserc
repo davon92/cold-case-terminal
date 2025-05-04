@@ -1,6 +1,8 @@
 {
   "projects": {
-    "staging": "coldcasesync"
+    "staging": "coldcasesync",
+    "default": "coldcasesync",
+    "prod": "coldcasesync"
   },
   "targets": {},
   "etags": {}

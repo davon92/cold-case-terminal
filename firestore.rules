@@ -1,0 +1,48 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    match /runs/{runId} {
+
+      // ✅ Full write access for Unity if authenticated
+      allow delete, write: if request.auth != null && request.auth.token.role == "unity";
+
+      // ✅ Guest or Agent submitting pendingEvidence
+      allow update: if
+        (
+          // Guest: must include access code and be writing to pendingEvidence
+          request.resource.data.keys().hasAny(["pendingEvidence"]) &&
+          request.resource.data.guestAccessCode == resource.data.guestAccessCode
+        )
+        ||
+        (
+          // Agent: must NOT include guestAccessCode but must include pendingEvidence
+          request.resource.data.keys().hasAny(["pendingEvidence"]) &&
+          !request.resource.data.keys().hasAny(["guestAccessCode"])
+        )
+        ||
+        (
+          // Unlocking Evidence: Guest or Agent submits unlockedEvidence and/or unlockCodesUsed
+          request.resource.data.keys().hasOnly(["unlockedEvidence"]) ||
+          request.resource.data.keys().hasOnly(["unlockedEvidence", "unlockCodesUsed"])
+        );
+
+      // ✅ Unity unlocking full cases (e.g., unlockedCases field)
+      allow update: if
+        request.auth != null &&
+        request.auth.token.role == "unity" &&
+        request.resource.data.keys().hasAny(["unlockedCases"]);
+
+      // ✅ Allow reads (can restrict later)
+      allow read: if true;
+    }
+
+    match /guests/{guestId} {
+      allow read, write: if true;
+    }
+
+    match /cases/{caseId} {
+      allow read: if true;
+    }
+  }
+}
