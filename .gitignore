@@ -42,3 +42,4 @@ next-env.d.ts
 # Ignore local evidence folder
 evidence/
 .serviceAccountKey*
+coldcase-web.zip
