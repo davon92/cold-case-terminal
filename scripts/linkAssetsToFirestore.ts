@@ -21,7 +21,7 @@ admin.initializeApp({
 });
 
 const db = getFirestore();
-const bucket = getStorage().bucket('coldcasesync.appspot.com');
+const bucket = getStorage().bucket('gs://coldcasesync.firebasestorage.app');
 
 // 📁 Expected structure: evidence/CASE_ID/EVIDENCE_ID/filename.ext
 async function linkAllAssets() {
@@ -59,6 +59,7 @@ async function linkAllAssets() {
   
       const caseRef = db.collection('cases').doc(caseId);
       const doc = await caseRef.get();
+      
       if (!doc.exists) {
         console.warn(`⚠️ No Firestore document found for case ${caseId}. Creating it.`);
       
@@ -67,10 +68,10 @@ async function linkAllAssets() {
       
         await caseRef.set({
           title,
-          evidence: {}
+          evidence: {},
         });
       }
-  
+      
       await caseRef.update({
         [`evidence.${evidenceId}`]: {
           fileName,
