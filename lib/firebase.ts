@@ -1,5 +1,7 @@
 // Top: setup
 import { initializeApp, getApps, getApp } from 'firebase/app';
+import { getStorage, ref, getDownloadURL } from 'firebase/storage';
+
 import {
   getFirestore,
   doc,
@@ -20,6 +22,7 @@ const firebaseConfig = {
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
+const storage = getStorage();
 
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 export const db = getFirestore(app);
@@ -99,3 +102,56 @@ export async function submitAgentEvidence(runId: string, evidenceId: string): Pr
     return 'error';
   }
 }
+
+export async function unlockEvidenceForRun(runId: string, passcode: string): Promise<'ok' | 'alreadyUnlocked' | 'invalidCode' | 'error'> {
+  try {
+    const runRef = doc(db, 'runs', runId);
+    const snap = await getDoc(runRef);
+    if (!snap.exists()) return 'error';
+
+    // 🔐 Map passcodes to evidence IDs (can later be dynamic via Firestore)
+    const codeToEvidence: Record<string, string> = {
+      'ARX-29B': 'secret-evidence-5',
+      'ZETA-314': 'audio-decrypt-4',
+    };
+
+    const evidenceId = codeToEvidence[passcode.trim().toUpperCase()];
+    if (!evidenceId) return 'invalidCode';
+
+    const data = snap.data();
+    const unlocked: string[] = data.unlockedEvidence || [];
+
+    if (unlocked.includes(evidenceId)) return 'alreadyUnlocked';
+
+    await updateDoc(runRef, {
+      unlockedEvidence: arrayUnion(evidenceId),
+    });
+
+    return 'ok';
+  } catch (err) {
+    console.error('❌ Unlock evidence failed:', err);
+    return 'error';
+  }
+}
+
+export async function fetchEvidenceMediaUrls(caseId: string, evidenceId: string, fileType: string) {
+  try {
+    const basePath = `cases/${caseId}`;
+    const thumbRef = ref(storage, `${basePath}/thumb${evidenceId}.jpg`);
+    const fileRef = ref(storage, `${basePath}/file${evidenceId}.${fileType.toLowerCase()}`);
+
+    const [thumbnailUrl, fileDownloadUrl] = await Promise.all([
+      getDownloadURL(thumbRef),
+      getDownloadURL(fileRef),
+    ]);
+
+    return { thumbnailUrl, fileDownloadUrl };
+  } catch (err) {
+    console.warn(`⚠️ Failed to load media for evidence ${evidenceId} in ${caseId}`, err);
+    return {
+      thumbnailUrl: '',
+      fileDownloadUrl: '',
+    };
+  }
+}
+

@@ -6,10 +6,14 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "link-assets": "tsx scripts/linkAssetsToFirestore.ts",
+    "upload-and-link": "tsx scripts/uploadAndLink.ts"
   },
   "dependencies": {
+    "dotenv": "^16.5.0",
     "firebase": "^11.6.1",
+    "firebase-admin": "^13.3.0",
     "next": "^15.3.1",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -18,7 +22,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/firebase": "^2.4.32",
-    "@types/node": "^20",
+    "@types/node": "^20.17.32",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "autoprefixer": "^10.4.21",
@@ -26,6 +30,7 @@
     "eslint-config-next": "15.3.1",
     "postcss": "^8.5.3",
     "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.4",
     "typescript": "^5"
   }
 }
