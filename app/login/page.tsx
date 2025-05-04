@@ -2,117 +2,114 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { doc, getDoc, getDocs, collection } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function LoginPage() {
-  const router = useRouter();
-
-  const [code, setCode] = useState('');
-  const [isGuest, setIsGuest] = useState(false);
+  const [runId, setRunId] = useState('');
+  const [guestCode, setGuestCode] = useState('');
+  const [mode, setMode] = useState<'agent' | 'guest'>('agent');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
 
   const handleLogin = async () => {
     setError('');
-
-    if (code.trim() === '') {
-      setError('Please enter a valid code.');
-      return;
-    }
+    setLoading(true);
 
     try {
-      if (isGuest) {
-        // Look up guest access code across all runs
-        const allRuns = await getDocs(collection(db, 'runs'));
-        let matchingRunId = null;
+      if (mode === 'agent') {
+        const docRef = doc(db, 'runs', runId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          localStorage.setItem('runId', runId);
+          localStorage.removeItem('guestAccess');
+          router.push('/case-library');
+        } else {
+          setError('Invalid Run ID');
+        }
+      } else {
+        const snapshot = await getDocs(collection(db, 'runs'));
+        let found = false;
 
-        allRuns.forEach((doc) => {
-          const data = doc.data();
-          if (data.guestAccessCode === code.trim()) {
-            matchingRunId = doc.id;
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data();
+          if (data.guestAccessCode === guestCode) {
+            localStorage.setItem('runId', data.runId);
+            localStorage.setItem('guestAccess', 'true');
+            found = true;
+            router.push('/case-library');
           }
         });
 
-        if (matchingRunId) {
-          localStorage.setItem('runId', matchingRunId);
-          localStorage.setItem('isGuest', 'true');
-          localStorage.setItem('guestAccessCode', code.trim());
-          router.push('/case-library');
-        } else {
-          setError('Incorrect guest access code.');
-        }
-      } else {
-        // Agent login using code as runId
-        const ref = doc(db, 'runs', code.trim());
-        const snap = await getDoc(ref);
-
-        if (snap.exists()) {
-          localStorage.setItem('runId', code.trim());
-          localStorage.setItem('isGuest', 'false');
-          router.push('/case-library');
-        } else {
-          setError('Invalid Run ID.');
+        if (!found) {
+          setError('Invalid Guest Code');
         }
       }
     } catch (err) {
       console.error('Login error:', err);
-      setError('Something went wrong. Please try again.');
+      setError('Login failed');
     }
+
+    setLoading(false);
   };
 
   return (
-    <main className="h-screen bg-black flex items-center justify-center p-6 font-mono text-sm text-black">
-      <div className="bg-[#c0c0c0] border border-t-white border-l-white border-b-[#808080] border-r-[#808080] shadow-[2px_2px_0_#000] w-full max-w-md p-4">
-        <div className="bg-[#e0e0e0] border-b border-[#666] px-2 py-1 font-bold text-xs uppercase tracking-wider">
-          LOGIN TERMINAL
+    <div className="min-h-screen bg-black text-white flex items-center justify-center">
+      <div className="w-96 p-4 bg-gray-200 text-black border border-black shadow-md space-y-4">
+        <h1 className="text-lg font-bold border-b border-black pb-1">COLD CASE TERMINAL LOGIN</h1>
+
+        <div className="flex justify-around text-xs">
+          <button
+            onClick={() => setMode('agent')}
+            className={`px-2 py-1 border border-black ${
+              mode === 'agent' ? 'bg-white' : 'bg-gray-300'
+            }`}
+          >
+            AGENT LOGIN
+          </button>
+          <button
+            onClick={() => setMode('guest')}
+            className={`px-2 py-1 border border-black ${
+              mode === 'guest' ? 'bg-white' : 'bg-gray-300'
+            }`}
+          >
+            GUEST ACCESS
+          </button>
         </div>
 
-        <div className="bg-[#c0c0c0] border border-[#999] p-4 space-y-4">
-          <label className="block text-xs font-bold mb-1">
-            {isGuest ? 'Guest Access Code:' : 'Agent Run ID:'}
-          </label>
-
-          <div className="relative">
+        {mode === 'agent' ? (
+          <div className="space-y-2">
+            <label className="text-xs font-bold">RUN ID</label>
             <input
-              type={showPassword ? 'text' : 'password'}
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              className="w-full p-2 pr-10 text-sm font-mono bg-white text-black caret-black border border-[#808080] shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000]"
+              type="password"
+              value={runId}
+              onChange={(e) => setRunId(e.target.value)}
+              className="w-full p-1 border border-black bg-white text-black"
             />
-            <button
-              type="button"
-              onClick={() => setShowPassword(!showPassword)}
-              className="absolute right-2 top-1/2 transform -translate-y-1/2 text-xs text-black"
-            >
-              {showPassword ? '🙈' : '👁️'}
-            </button>
           </div>
-
-          <div className="flex items-center gap-2 text-xs pt-1">
+        ) : (
+          <div className="space-y-2">
+            <label className="text-xs font-bold">GUEST ACCESS CODE</label>
             <input
-              type="checkbox"
-              checked={isGuest}
-              id="guestCheck"
-              onChange={(e) => setIsGuest(e.target.checked)}
-              className="w-4 h-4 appearance-none bg-white border border-black checked:bg-white checked:border-black checked:[background-image:url('data:image/svg+xml,%3Csvg%20width%3D%2210%22%20height%3D%2210%22%20viewBox%3D%220%200%2010%2010%22%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%3E%3Cpath%20d%3D%22M1%205l2%202l5-5%22%20stroke%3D%22black%22%20stroke-width%3D%222%22%20fill%3D%22none%22/%3E%3C/svg%3E')] bg-no-repeat bg-center shadow-[inset_1px_1px_0px_#fff,inset_-1px_-1px_0px_#000]"
+              type="password"
+              value={guestCode}
+              onChange={(e) => setGuestCode(e.target.value)}
+              className="w-full p-1 border border-black bg-white text-black"
             />
-            <label htmlFor="guestCheck">Log in as guest</label>
           </div>
+        )}
 
-          {error && (
-            <div className="text-red-700 text-xs mt-1 font-semibold">
-              {error}
-            </div>
-          )}
+        <button
+          onClick={handleLogin}
+          disabled={loading}
+          className="w-full mt-2 border border-black bg-gray-300 hover:bg-gray-200 p-1 text-xs"
+        >
+          {loading ? 'CONNECTING...' : 'CONNECT'}
+        </button>
 
-          <div className="text-center pt-2">
-            <button onClick={handleLogin} className="win95-button">
-              CONNECT
-            </button>
-          </div>
-        </div>
+        {error && <p className="text-red-600 text-xs">{error}</p>}
       </div>
-    </main>
+    </div>
   );
 }

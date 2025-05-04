@@ -43,4 +43,7 @@ next-env.d.ts
 evidence/
 .serviceAccountKey*
 coldcase-web.zip
+scripts/*
 scripts/serviceAccountKey.json
+scripts/createTestRun.ts
+

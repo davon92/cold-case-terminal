@@ -1,126 +1,86 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { db } from '@/lib/firebase';
-import { collection, doc, getDoc, getDocs } from 'firebase/firestore';
+import { useSession } from '@/lib/hooks/useSession';
+import { useUnlockedCases } from '@/lib/hooks/useUnlockedCases';
+import { useUnlockedEvidence } from '@/lib/hooks/useUnlockedEvidence';
+import UnlockModal from '@/components/UnlockModal';
 import EvidenceCard from '@/components/EvidenceCard';
-
-type EvidenceData = {
-  fileName: string;
-  fileType: string;
-  thumbnailUrl: string;
-  fileDownloadUrl: string;
-  code?: string;
-};
-
-type CaseData = {
-  title: string;
-  evidence: Record<string, EvidenceData>;
-};
+import { submitEvidence } from '@/lib/firebase';
+import { EvidenceData } from '@/lib/types';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function CaseLibraryPage() {
-  const [cases, setCases] = useState<Record<string, CaseData>>({});
-  const [unlockedCases, setUnlockedCases] = useState<string[]>([]);
-  const [unlockedEvidence, setUnlockedEvidence] = useState<string[]>([]);
-  const [activeCaseId, setActiveCaseId] = useState<string | null>(null);
+  const session = useSession();
 
-  const runId =
-    typeof window !== 'undefined' ? localStorage.getItem('runId') : null;
+  // Always call hooks with fallback value
+  const runId = session?.runId ?? '';
+  const unlockedCases = useUnlockedCases(runId);
+  const unlockedEvidence = useUnlockedEvidence(runId);
+  const submittedBy = session?.isGuest ? 'Assistant' : 'Self';
 
-  // 🔄 Fetch all case metadata and unlocked state
+  const [selectedCase, setSelectedCase] = useState<string | null>(null);
+  const [caseData, setCaseData] = useState<Record<string, EvidenceData>>({});
+  const [showUnlockModal, setShowUnlockModal] = useState(false);
+
   useEffect(() => {
-    async function fetchData() {
-      const caseSnapshot = await getDocs(collection(db, 'cases'));
-      const newCases: Record<string, CaseData> = {};
+    const loadCaseData = async () => {
+      if (!selectedCase) return;
+      const caseRef = doc(db, 'cases', selectedCase);
+      const caseSnap = await getDoc(caseRef);
+      const data = caseSnap.data();
+      setCaseData(data?.evidence ?? {});
+    };
+    loadCaseData();
+  }, [selectedCase]);
 
-      for (const caseDoc of caseSnapshot.docs) {
-        const caseId = caseDoc.id;
-        const caseData = caseDoc.data() as CaseData;
-        newCases[caseId] = {
-          title: caseData.title,
-          evidence: caseData.evidence,
-        };
-      }
+  if (!session) return <div>Loading...</div>;
 
-      setCases(newCases);
-
-      if (runId) {
-        const runDoc = await getDoc(doc(db, 'runs', runId));
-        if (runDoc.exists()) {
-          const data = runDoc.data();
-          setUnlockedCases(data.unlockedCases || []);
-          setUnlockedEvidence(data.unlockedEvidence || []);
-        }
-      }
-    }
-
-    fetchData();
-  }, [runId]);
-
-  // 🔁 Manual refresh for unlocked evidence (from modal unlocks)
-  const handleRefreshEvidence = async () => {
-    if (!runId) return;
-    const runDoc = await getDoc(doc(db, 'runs', runId));
-    if (runDoc.exists()) {
-      const data = runDoc.data();
-      setUnlockedEvidence(data.unlockedEvidence || []);
+  const handleSubmitEvidence = async (evidenceId: string) => {
+    const result = await submitEvidence(runId, evidenceId, submittedBy);
+    if (result === 'ok') {
+      alert('✅ Evidence submitted!');
+    } else if (result === 'duplicate') {
+      alert('⚠️ Already submitted!');
+    } else {
+      alert('❌ Failed to submit evidence.');
     }
   };
 
-  // 🎯 Only show cases that are unlocked
-  const visibleCases = Object.entries(cases).filter(([caseId]) =>
-    unlockedCases.includes(caseId)
-  );
-
   return (
-    <main className="min-h-screen bg-black text-black font-mono p-8">
-      <div className="bg-[#c0c0c0] border-4 border-[#9f9f9f] shadow-inner max-w-4xl mx-auto p-6">
-        <div className="bg-[#e0e0e0] border-b border-[#666] px-3 py-1 font-bold text-xs uppercase tracking-wider">
-          Case Library
-        </div>
+    <div className="p-4">
+      <h2 className="mb-2 font-bold text-lg">CASE LIBRARY</h2>
+      <div className="flex gap-4">
+        {unlockedCases.map((caseId) => (
+          <button
+            key={caseId}
+            className="bg-gray-300 border border-black p-4"
+            onClick={() => setSelectedCase(caseId)}
+          >
+            {caseId === '001' ? 'The Lake Side Murder' : `Case ${caseId}`}
+          </button>
+        ))}
+      </div>
 
-        {/* 📁 Case Selection */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4">
-          {visibleCases.map(([caseId, caseData]) => (
-            <button
-              key={caseId}
-              onClick={() => setActiveCaseId(caseId)}
-              className="flex flex-col items-center justify-center p-4 h-32 border text-xs font-bold uppercase tracking-wide bg-white text-black hover:bg-[#e0e0e0] border-t-white border-l-white border-b-[#808080] border-r-[#808080]"
-            >
-              <div className="mb-2 text-lg">📁</div>
-              {caseData.title}
-            </button>
+      {selectedCase && (
+        <div className="mt-6 grid grid-cols-2 gap-4">
+          {Object.entries(caseData).map(([evidenceId, data]) => (
+            <EvidenceCard
+              key={evidenceId}
+              evidenceId={evidenceId}
+              data={data}
+              unlocked={unlockedEvidence.includes(evidenceId)}
+              onUnlockClick={() => setShowUnlockModal(true)}
+              onSubmitClick={() => handleSubmitEvidence(evidenceId)}
+            />
           ))}
         </div>
+      )}
 
-        {/* 🔍 Evidence Grid */}
-        {activeCaseId && cases[activeCaseId] && (
-          <div className="mt-6 bg-white border border-[#666] p-4">
-            <h2 className="text-lg font-bold mb-2">
-              Opened Case: {cases[activeCaseId].title}
-            </h2>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4 mt-4">
-              {Object.entries(cases[activeCaseId].evidence).map(
-                ([evidenceId, evidenceData]) => {
-                  const isUnlocked =
-                    !evidenceData.code || unlockedEvidence.includes(evidenceId);
-
-                  return (
-                    <EvidenceCard
-                      key={evidenceId}
-                      caseId={activeCaseId}
-                      evidenceId={evidenceId}
-                      evidenceData={evidenceData}
-                      isUnlocked={isUnlocked}
-                      onUnlock={handleRefreshEvidence}
-                    />
-                  );
-                }
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-    </main>
+      {showUnlockModal && (
+        <UnlockModal runId={runId} onClose={() => setShowUnlockModal(false)} />
+      )}
+    </div>
   );
 }

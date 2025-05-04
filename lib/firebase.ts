@@ -1,20 +1,19 @@
-// lib/firebase.ts
-
-import { initializeApp, getApps, getApp } from 'firebase/app';
-import { getStorage, ref, getDownloadURL } from 'firebase/storage';
-
+import { initializeApp } from 'firebase/app';
 import {
   getFirestore,
   doc,
   getDoc,
   updateDoc,
   arrayUnion,
-  serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { FirebaseOptions } from 'firebase/app';
+import { PendingEvidence } from './types';
+import { RunDocument } from '@/lib/types';
 
-// ✅ Firebase config from .env.local
-const firebaseConfig = {
+// Firebase client config (browser-safe version)
+const firebaseConfig: FirebaseOptions = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
   authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
   projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
@@ -23,137 +22,95 @@ const firebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
 };
 
-// ✅ Correct order: initialize first
-const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
-
+const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 
-// ✅ Type for evidence entries
-type PendingEvidenceEntry = {
-  evidenceID: string;
-  submittedBy: 'Self' | 'Assistant';
-  submittedAt: Timestamp;
-  status: 'pending';
-};
 
-// ✅ Guest submission
-export async function submitGuestEvidence(runId: string, evidenceId: string, accessCode: string) {
+// 🔓 Unlock evidence using a code (adds to unlockedEvidence array)
+export async function unlockEvidenceForRun(
+  runId: string,
+  code: string
+): Promise<'ok' | 'alreadyUnlocked' | 'invalidCode' | 'error'> {
   try {
     const runRef = doc(db, 'runs', runId);
-    const snap = await getDoc(runRef);
-    if (!snap.exists()) return 'error';
+    const runSnap = await getDoc(runRef);
+    if (!runSnap.exists()) return 'error';
 
-    const data = snap.data();
-    const alreadyCollected: string[] = data.currentCaseProgress?.collectedEvidence || [];
-    const alreadyPending: string[] = (data.pendingEvidence as PendingEvidenceEntry[] || []).map(e => e.evidenceID);
+    const runData = runSnap.data() as RunDocument;
 
-    if (alreadyCollected.includes(evidenceId) || alreadyPending.includes(evidenceId)) {
-      return 'duplicate';
+    const casesRef = doc(db, 'cases', runData.currentCaseProgress?.caseId ?? '');
+    const caseSnap = await getDoc(casesRef);
+    if (!caseSnap.exists()) return 'error';
+
+    const caseData = caseSnap.data();
+    const evidence = caseData?.evidence ?? {};
+
+    const unlockedEvidence = new Set(runData.unlockedEvidence ?? []);
+
+    for (const [evidenceId, entry] of Object.entries(evidence)) {
+      if (
+        (entry as { unlockCode?: string }).unlockCode === code &&
+        !unlockedEvidence.has(evidenceId)
+      ) {
+        await updateDoc(runRef, {
+          unlockedEvidence: arrayUnion(evidenceId),
+        });
+        return 'ok';
+      }
+
+      if (
+        (entry as { unlockCode?: string }).unlockCode === code &&
+        unlockedEvidence.has(evidenceId)
+      ) {
+        return 'alreadyUnlocked';
+      }
     }
 
-    const evidenceEntry: PendingEvidenceEntry = {
-      evidenceID: evidenceId,
-      submittedBy: 'Assistant',
-      submittedAt: Timestamp.now(),
-      status: 'pending',
-    };
-
-    await updateDoc(runRef, {
-      pendingEvidence: arrayUnion(evidenceEntry),
-      guestAccessCode: accessCode,
-      lastUpdatedAt: serverTimestamp(),
-    });
-
-    return 'ok';
+    return 'invalidCode';
   } catch (err) {
-    console.error('🔥 Guest submission failed:', err);
+    console.error('Unlock error:', err);
     return 'error';
   }
 }
 
-// ✅ Agent submission
-export async function submitAgentEvidence(runId: string, evidenceId: string): Promise<'ok' | 'duplicate' | 'error'> {
+// 📨 Submit pending evidence from agent or guest
+export async function submitEvidence(
+  runId: string,
+  evidenceId: string,
+  submittedBy: 'Self' | 'Assistant'
+): Promise<'ok' | 'duplicate' | 'error'> {
   try {
-    const runRef = doc(db, 'runs', runId);
-    const snap = await getDoc(runRef);
+    const ref = doc(db, 'runs', runId);
+    const snap = await getDoc(ref);
     if (!snap.exists()) return 'error';
 
-    const data = snap.data();
-    const alreadyPending: string[] = (data.pendingEvidence as PendingEvidenceEntry[] || []).map(e => e.evidenceID);
+    const data = snap.data() as RunDocument;
 
-    if (alreadyPending.includes(evidenceId)) {
-      return 'duplicate';
-    }
+    const isCollected = !!data.currentCaseProgress?.collectedEvidence?.[evidenceId];
 
-    const evidenceEntry: PendingEvidenceEntry = {
+    const isPending = Array.isArray(data.pendingEvidence)
+      ? data.pendingEvidence.some(
+          (e: PendingEvidence) => e.evidenceID === evidenceId
+        )
+      : false;
+
+    if (isCollected || isPending) return 'duplicate';
+
+    const newEntry: PendingEvidence = {
       evidenceID: evidenceId,
-      submittedBy: 'Self',
-      submittedAt: Timestamp.now(),
+      submittedBy,
       status: 'pending',
+      submittedAt: Timestamp.now(),
     };
 
-    await updateDoc(runRef, {
-      pendingEvidence: arrayUnion(evidenceEntry),
-      lastUpdatedAt: serverTimestamp(),
+    await updateDoc(ref, {
+      pendingEvidence: arrayUnion(newEntry),
     });
 
     return 'ok';
   } catch (err) {
-    console.error('🔥 Agent submission failed:', err);
+    console.error('Failed to submit evidence:', err);
     return 'error';
-  }
-}
-
-// ✅ Evidence unlock via passcode
-export async function unlockEvidenceForRun(runId: string, passcode: string): Promise<'ok' | 'alreadyUnlocked' | 'invalidCode' | 'error'> {
-  try {
-    const runRef = doc(db, 'runs', runId);
-    const snap = await getDoc(runRef);
-    if (!snap.exists()) return 'error';
-
-    const codeToEvidence: Record<string, string> = {
-      'ARX-29B': 'secret-evidence-5',
-      'ZETA-314': 'audio-decrypt-4',
-    };
-
-    const evidenceId = codeToEvidence[passcode.trim().toUpperCase()];
-    if (!evidenceId) return 'invalidCode';
-
-    const data = snap.data();
-    const unlocked: string[] = data.unlockedEvidence || [];
-
-    if (unlocked.includes(evidenceId)) return 'alreadyUnlocked';
-
-    await updateDoc(runRef, {
-      unlockedEvidence: arrayUnion(evidenceId),
-    });
-
-    return 'ok';
-  } catch (err) {
-    console.error('❌ Unlock evidence failed:', err);
-    return 'error';
-  }
-}
-
-// ✅ Media asset URL fetch
-export async function fetchEvidenceMediaUrls(caseId: string, evidenceId: string, fileType: string) {
-  try {
-    const basePath = `cases/${caseId}`;
-    const thumbRef = ref(storage, `${basePath}/thumb${evidenceId}.jpg`);
-    const fileRef = ref(storage, `${basePath}/file${evidenceId}.${fileType.toLowerCase()}`);
-
-    const [thumbnailUrl, fileDownloadUrl] = await Promise.all([
-      getDownloadURL(thumbRef),
-      getDownloadURL(fileRef),
-    ]);
-
-    return { thumbnailUrl, fileDownloadUrl };
-  } catch (err) {
-    console.warn(`⚠️ Failed to load media for evidence ${evidenceId} in ${caseId}`, err);
-    return {
-      thumbnailUrl: '',
-      fileDownloadUrl: '',
-    };
   }
 }

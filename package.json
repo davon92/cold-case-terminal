@@ -7,8 +7,10 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "link-assets": "tsx scripts/linkAssetsToFirestore.ts",
-    "upload-and-link": "tsx scripts/uploadAndLink.ts"
+    "upload-evidence":"uploadEvidenceToFirestore.ts",
+    "create-test-run": "tsx scripts/createTestRun.ts",
+    "clean-up-runs": "tsx scripts/cleanupRuns.ts",
+    "sync-startingtounlocked": "tsx scripts/syncStartingToUnlocked.ts"
   },
   "dependencies": {
     "dotenv": "^16.5.0",
@@ -22,6 +24,7 @@
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/firebase": "^2.4.32",
+    "@types/mime-types": "^2.1.4",
     "@types/node": "^20.17.32",
     "@types/react": "^19",
     "@types/react-dom": "^19",
