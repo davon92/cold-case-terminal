@@ -3,12 +3,13 @@
 import { useEffect, useState } from 'react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+import { SubmittedCase } from '../types';
 
 export interface SessionData {
   runId: string;
   agentName: string;
   currentCaseId: string;
-  submittedCases: string[];
+  submittedCases: SubmittedCase[];
   unlockedCases: string[];
   unlockedEvidence: string[];
   collectedEvidence: string[];

@@ -40,4 +40,12 @@ import { Timestamp } from 'firebase-admin/firestore';
     };
     pendingEvidence?: PendingEvidence[];
   }
+
+  export interface SubmittedCase {
+    caseId: string;
+    collectedEvidence: Record<string, boolean>;
+    score?: number;
+    submittedAt?: Timestamp;
+  }
+  
   
