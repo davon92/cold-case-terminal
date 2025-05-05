@@ -1,58 +1,66 @@
 'use client';
 
+import React from 'react';
 import Image from 'next/image';
 import { EvidenceData } from '@/lib/types';
 
+type Props = {
+  evidenceId: string;
+  data: EvidenceData;
+  unlocked: boolean;
+  collected: boolean;
+  onUnlockClick?: () => void;
+  onSubmitClick?: () => void;
+};
+
 export default function EvidenceCard({
-  data,
   evidenceId,
+  data,
   unlocked,
+  collected,
   onUnlockClick,
   onSubmitClick,
-}: {
-  data: EvidenceData;
-  evidenceId: string;
-  unlocked: boolean;
-  onUnlockClick: (evidenceId: string) => void;
-  onSubmitClick: (evidenceId: string) => Promise<void>;
-}) {
-  const isLocked = !!data.unlockCode && !unlocked;
+}: Props) {
+  const isLocked = !unlocked && !collected;
 
   return (
-    <div className="w-full bg-white border border-black shadow-md p-2 text-xs space-y-2">
-      <div className="relative w-full h-40 border border-black overflow-hidden">
+    <div
+      className={`border border-black bg-gray-200 p-4 w-full ${
+        isLocked ? 'opacity-50 grayscale blur-sm cursor-not-allowed' : ''
+      }`}
+    >
+      <div className="w-full h-40 relative">
         <Image
           src={data.thumbnailUrl}
-          alt={data.fileName}
-          fill
-          className={`object-cover ${isLocked ? 'blur-sm grayscale' : ''}`}
+          alt={isLocked ? 'Locked Evidence' : data.fileName}
+          layout="fill"
+          objectFit="cover"
+          className={isLocked ? 'blur-sm' : ''}
         />
       </div>
 
-      {isLocked ? (
-        <button
-          onClick={() => onUnlockClick(evidenceId)}
-          className="w-full border border-black text-xs p-1 bg-yellow-200 hover:bg-yellow-300"
-        >
-          UNLOCK
-        </button>
-      ) : (
-        <>
+      <h3 className="mt-2 text-sm font-bold">
+        {isLocked ? 'Evidence Locked' : data.fileName}
+      </h3>
+
+      {!isLocked && (
+        <div className="mt-2 flex gap-2">
           <a
             href={data.fileDownloadUrl}
             download
-            className="block w-full text-center border border-black text-xs p-1 bg-gray-300 hover:bg-gray-200"
+            className="bg-white border border-black px-2 py-1 text-xs"
           >
-            DOWNLOAD
+            Download
           </a>
-
-          <button
-            onClick={() => onSubmitClick(evidenceId)}
-            className="w-full border border-black text-xs p-1 bg-gray-300 hover:bg-gray-200"
-          >
-            SUBMIT
-          </button>
-        </>
+          {unlocked && (
+            <button
+              onClick={onSubmitClick}
+              className="bg-blue-100 border border-black px-2 py-1 text-xs"
+            >
+              Submit
+            </button>
+          )}
+        </div>
       )}
     </div>
   );

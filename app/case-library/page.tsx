@@ -29,9 +29,26 @@ export default function CaseLibraryPage() {
       if (!selectedCase) return;
       const caseRef = doc(db, 'cases', selectedCase);
       const caseSnap = await getDoc(caseRef);
-      const data = caseSnap.data();
-      setCaseData(data?.evidence ?? {});
+      const rawData = caseSnap.data();
+  
+      const rawEvidence = (rawData?.evidence ?? {}) as Record<string, unknown>;
+      const normalizedEvidence: Record<string, EvidenceData> = {};
+  
+      for (const [key, value] of Object.entries(rawEvidence)) {
+        if (
+          typeof value === 'object' &&
+          value !== null &&
+          'fileName' in value &&
+          'fileType' in value &&
+          'thumbnailUrl' in value
+        ) {
+          normalizedEvidence[String(key)] = value as EvidenceData;
+        }
+      }
+      console.log('Normalized Evidence Keys:', Object.keys(normalizedEvidence));
+      setCaseData(normalizedEvidence);
     };
+  
     loadCaseData();
   }, [selectedCase]);
 
@@ -66,14 +83,16 @@ export default function CaseLibraryPage() {
       {selectedCase && (
         <div className="mt-6 grid grid-cols-2 gap-4">
           {Object.entries(caseData).map(([evidenceId, data]) => (
-            <EvidenceCard
+              <EvidenceCard
               key={evidenceId}
               evidenceId={evidenceId}
               data={data}
               unlocked={unlockedEvidence.includes(evidenceId)}
+              collected={session.collectedEvidence.includes(evidenceId)}
               onUnlockClick={() => setShowUnlockModal(true)}
               onSubmitClick={() => handleSubmitEvidence(evidenceId)}
             />
+        
           ))}
         </div>
       )}
